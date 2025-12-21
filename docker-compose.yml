@@ -1,0 +1,16 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: prh_postgres
+    environment:
+      POSTGRES_USER: prh
+      POSTGRES_PASSWORD: prh
+      POSTGRES_DB: prh_dw
+    ports:
+      - "5432:5432"
+    volumes:
+      - prh_pg:/var/lib/postgresql/data
+
+volumes:
+  prh_pg:
+

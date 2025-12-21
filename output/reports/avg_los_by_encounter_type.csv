@@ -1,0 +1,5 @@
+encounter_type,avg_length_of_stay_days,encounters
+ED,0.056140350877192984,285
+Inpatient,5.675,320
+Observation,0.898360655737705,305
+Outpatient,0.0,290
