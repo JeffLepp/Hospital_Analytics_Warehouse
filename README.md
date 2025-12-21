@@ -14,6 +14,7 @@ reporting views and CSV exports.
 - pgAdmin (optional UI)
 
 ## Project layout
+```
 Hospital_Analytics_Warehouse/
 ├─ data/
 │  └─ raw/ 
@@ -31,6 +32,7 @@ Hospital_Analytics_Warehouse/
 ├─ validate_and_build_warehouse.py
 ├─ export_reports.py
 └─ test_db.py   
+```
 
 ## Prerequisites
 - Docker Desktop
