@@ -111,7 +111,7 @@ for each dimension, fact table, and run log. This schema follows a dimensional
 (star) model, where dimensions describe entities involved in the data (who, 
 what, where, when) and the fact table records measurable events (encounters). 
 Each are described in more detail below.
------------------------------------------------------------------------------
+
 ### Dimension tables
 
 - **`dim_patient`**  
