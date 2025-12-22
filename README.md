@@ -1,90 +1,223 @@
-Infrastructure and data creation -> slow start 12/19
-In progress - additional features and documentation yet to be made 12/20
-
-# Hospital Data Warehouse (Docker + Postgres + Python ETL)
-
-End-to-end data engineering mini-project. Simulates hospital data sources, 
+# Hospital Analytics Data Warehouse (Docker + Postgres + Python ETL)
+End-to-end data engineering project. Simulates hospital data sources, 
 loads them into a staging layer, validates data quality, and builds an 
 analytics-ready warehouse schema (dimensions + fact table). Includes 
-reporting views and CSV exports.
+reporting views and CSV exports. More detailed descriptions below.
 
 ## Tech stack
 - Python (pandas, SQLAlchemy)
 - Postgres (Docker)
 - pgAdmin (optional UI)
 
-## Project layout
+## Prerequisites
+- Docker Desktop
+- Python 3.11+ (venv recommended)
+
+## Setup
+Once Downloaded, open docker desktop and run:
 ```
+docker compose up -d
+```
+And ensure container is running with:
+```
+docker ps
+```
+Create virtual environment and install requirements:
+```
+py -m venv venv
+.\venv\Scripts\activate
+pip install --upgrade pip
+
+pip install -r requirements.txt
+```
+Create a .env file and place within it:
+```
+DATABASE_URL=postgresql+psycopg2://prh:prh@localhost:5432/prh_dw
+```
+(Optional) Verify database connectivity before executing the pipeline:
+```
+py Scripts/test_db.py
+```
+Run each line below in the following order:
+```
+py create_schema.py
+py generate_raw_data.py
+py load_staging.py
+py validate_and_build.py
+py create_views.py
+py export_reports.py
+```
+
+### Reporting views
+
+Reporting views are defined as SQL in `sql/views.sql` and created 
+automatically using the `create_views.py` script. 
+
+These views provide an analytics-ready semantic layer so downstream 
+users do not query raw fact tables directly. 
+
+To create or refresh views:
+    ```
+    py create_views.py
+    ```
+
+## Detailed walkthrough contained below
+
+The pipeline executes in the following order:
+
+create_schema.py
+ -> generate_raw_data.py
+ -> load_staging.py
+ -> validate_and_build_warehouse.py
+ -> create_views.py  
+ -> export_reports.py
+
+Underlying database of the project is PostgreSQL, which runs inside a docker 
+container. Docker allows for reproducible environment (no manual PostgreSQL 
+installation). The container is defined in docker-compose.yml.
+
+PostgreSQL will listen on localhost:5432/ and connection details are stored 
+in a .env file using a SQLAlchemy connection string. This is loaded at run- 
+time using python-dotenv. This is convenient because credentials and 
+environment specific settings are then seperated from the application itself. 
+
+## Core libraries and their purpose
+    
+- **pandas**  
+  Used for data ingestion, transformation, aggregation, and validation logic.
+
+- **SQLAlchemy**  
+  Provides database connectivity and transaction handling between Python and PostgreSQL.
+
+- **psycopg2-binary**  
+  PostgreSQL database driver used by SQLAlchemy.
+
+- **python-dotenv**  
+  Loads environment variables (such as the database connection string) from a `.env` file.
+    
+## Warehouse schema
+The warehouse schema is created in create_schema.py which makes a fixed table 
+for each dimension, fact table, and run log. This schema follows a dimensional 
+(star) model, where dimensions describe entities involved in the data (who, 
+what, where, when) and the fact table records measurable events (encounters). 
+Each are described in more detail below.
+-----------------------------------------------------------------------------
+### Dimension tables
+
+- **`dim_patient`**  
+  `patient_id`, `birth_year`, `sex`
+
+- **`dim_provider`**  
+  `provider_id`, `provider_name`, `department_id`
+
+- **`dim_department`**  
+  `department_id`, `department_name`
+
+- **`dim_time`**  
+  `date_key`, `year`, `month`, `day`, `dow`
+
+---
+
+### Fact table
+
+- **`fact_encounter`**  
+  `encounter_id`, `patient_id`, `provider_id`, `department_id`,  
+  `admit_date`, `discharge_date`, `encounter_type`,  
+  `length_of_stay_days`, `total_charges`
+
+---
+
+### Operational metadata
+
+- **`etl_run_log`**  
+  `run_id`, `started_at`, `finished_at`, `status`, `notes`
+----------------------------------------------------------------------------- 
+
+Each warehouse table requires a source of data; because real hospital data 
+cannot be used, this project generates realistic synthetic datasets. Using 
+`generate_raw_data.py`, realistic CSV data from sources such as electronic 
+health records, billing systems, and HR systems. All records between CSV's 
+are linked with synthetic identifiers like patient ID or encounter ID.
+
+To begin organizing raw data extracts into a database, we load and store the 
+data into staging tables prefixed with "stg_". These are necessary for 
+controlled data flow as they act as a buffer for validation and inspection 
+of the raw data. 
+
+## Data quality checks
+
+The script `validate_and_build.py` enforces data quality checks before
+any warehouse tables are modified. These checks include:
+
+- **Duplicate key detection**
+  - duplicate `patient_id` values
+  - duplicate `encounter_id` values
+
+- **Financial validity**
+  - negative charge amounts are rejected
+
+- **Temporal consistency**
+  - discharge timestamps occurring before admission timestamps
+
+- **Referential integrity**
+  - charges referencing missing encounters
+  - labs referencing missing encounters
+    
+
+If any validation fails, the pipeline raises an error and aborts immediately.  
+Because warehouse loads are wrapped in database transactions, no partial or 
+invalid  data is written. The last known-good warehouse state is preserved, 
+etl_run_log allows for failure states to be audited.
+
+Following validation, validate_and_build.py constructs the warehouse layer.
+This layer consists of the data's dimensions and fact table. The dimensions are 
+unique entities derived from staging data and in this case are patients,
+providers, departments, and time. The fact table contains one row per encounter. 
+It derives metrics such as length_of_stay_days and total_charges. Each dimension 
+is made into it's own table prefixed with "dim_". The fact table is made into 
+fact_encounter. 
+
+The warehouse uses a truncate-and-reload strategy for repeatable runs while 
+preserving foreign key constraints, ensuring consistency without destructive 
+table replacement.
+
+The project also defines analytics-ready database views, which act as a semantic  
+layer for downstream use. A few examples include: 
+
+- **vw_avg_los_by_encounter_type**  
+  Average length of stay and encounter counts grouped by encounter type.
+
+- **vw_encounters_by_department_month**  
+  Monthly encounter counts and total charges by department.
+    
+Views are defined in `sql/views.sql` and created automatically by running
+`create_views.py`, ensuring reproducible setup.
+
+All pipeline steps are idempotent and can be safely re-run without manual cleanup.
+
+## Project layout
+
 Hospital_Analytics_Warehouse/
 ├─ data/
 │  └─ raw/ 
 ├─ output/ 
 │  ├─ reports/
 │  └─ logs/
+├─ Scripts/
+│  └─ test_db.py  
+├─ sql/
+│  └─ views.sql
 ├─ venv/ 
-├─ .env
+├─ .env (user-created; not committed)
+├─ .gitignore
 ├─ docker-compose.yml       
 ├─ requirements.txt
 ├─ README.md
-├─ create_schema.py      
+├─ create_schema.py    
+├─ create_views.py  
 ├─ generate_raw_data.py 
 ├─ load_staging.py 
-├─ validate_and_build_warehouse.py
-├─ export_reports.py
-└─ test_db.py   
-```
-
-## Prerequisites
-- Docker Desktop
-- Python 3.11+ (venv recommended)
-
-## Setup
+├─ validate_and_build.py
+└─ export_reports.py
 
 
-## Detailed Description and context
-
-Infrastructure behind project is Postgres, which runs in a docker container. 
-This docker container can be started with docker-compose.yml which can be 
-done with the command "docker compose up -d". Postgress will listen on the 
-machine at localhost:5432/. Its convenient to have a .env file to store the 
-connection string to the database, which will be loaded at runtime. 
-
-Specific libraries and dedicated purpose in this project are as follows:
-    - pandas            for data manipulation
-    - SQLAlchemy        for DB connections
-    - psycopg2-binary   the Postgres driver
-    - python-dotenv     load secrets/config from .env
-
-For conistency and downstream work, each table made with create.schema.py has rigid format:
-    - dim_patient       patient_id, birth_year, sex
-    - dim_provider      provider_id, provider_name, department_id 
-    - dim_department    department_id, department_name 
-    - dim_time          date_key, year, month, day, dow 
-    - fact_encounter    encounter_id, patient_id, provider_id, department_id, admit_date, 
-                        discharge_date, encounter_type, length_of_stay_days, total_charges 
-    - etl_run_log       run_id, started_at, finished_at, status, notes
-
-Each table made needs a source of data to populate it with. A common file form for 
-data extracts from lab, billing, or HR are .csv files. Using generate_raw_data.py, 
-multiple csv files are populated with realistic and relational data matched with 
-patient ID rather than any personalized identifiers (we respect privacy!)
-
-To begin transferring raw data ectracts into a queriable postgres database, we
-need to load the raw data into a pandas dataframe, which then goes into staging
-tables prefixed with "stg_". These are necessary for controlled data flow. 
-
-From here, it is important to run the raw data through some quality checks.
-Validate_and_build.py checks the data for patient_id and encounter_id duplicates,
-negative charges, weird discharge periods, and referencial intergrity (such as charges
-referencing a logged encounter). The program calls fail() upon data quality fail.
-
-Following quality checks, validate_and_build then builds data dimensions and fact table.
-The dimensions are a list of entities involved with the data, in this case being patients,
-providers, departments, and time. The fact table is organized such that each row is 
-an encounter. Includes calculations such as length_of_stay_days and total_charges. 
-Each dimension is made into it's own table prefixed with "dim_". The fact table is made
-into fact_encounter. 
-
-This dimension and fact table (or dim/fact) is a classic analytical model where the
-dimensions describe who/what/where/when while the fact table holds each measurable event. 
-This allows for easier reporting and use.
