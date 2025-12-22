@@ -72,14 +72,14 @@ To create or refresh views:
 
 ## Detailed walkthrough in the sections below
 
-The pipeline executes in the following order:
+The pipeline executes in the following order: 
 
-create_schema.py
- -> generate_raw_data.py
- -> load_staging.py
- -> validate_and_build_warehouse.py
- -> create_views.py  
- -> export_reports.py
+1. `create_schema.py`
+2. `generate_raw_data.py` 
+3. `load_staging.py` 
+4. `validate_and_build_warehouse.py`
+5. `create_views.py` 
+6. `export_reports.py`
 
 Underlying database of the project is PostgreSQL, which runs inside a docker 
 container. Docker allows for reproducible environment (no manual PostgreSQL 
