@@ -48,20 +48,29 @@ py create_views.py
 py export_reports.py
 ```
 
-### Reporting views
+## Reporting views
 
 Reporting views are defined as SQL in `sql/views.sql` and created 
 automatically using the `create_views.py` script. 
 
 These views provide an analytics-ready semantic layer so downstream 
-users do not query raw fact tables directly. 
+users do not query raw fact tables directly. A few examples include: 
+
+- **vw_avg_los_by_encounter_type**  
+  Average length of stay and encounter counts grouped by encounter type.
+
+- **vw_encounters_by_department_month**  
+  Monthly encounter counts and total charges by department.
+    
+Views are defined in `sql/views.sql` and created automatically by running
+`create_views.py`, ensuring reproducible setup.
 
 To create or refresh views:
     ```
     py create_views.py
     ```
 
-## Detailed walkthrough contained below
+## Detailed walkthrough in the sections below
 
 The pipeline executes in the following order:
 
@@ -96,6 +105,7 @@ environment specific settings are then seperated from the application itself.
   Loads environment variables (such as the database connection string) from a `.env` file.
     
 ## Warehouse schema
+
 The warehouse schema is created in create_schema.py which makes a fixed table 
 for each dimension, fact table, and run log. This schema follows a dimensional 
 (star) model, where dimensions describe entities involved in the data (who, 
@@ -181,22 +191,10 @@ The warehouse uses a truncate-and-reload strategy for repeatable runs while
 preserving foreign key constraints, ensuring consistency without destructive 
 table replacement.
 
-The project also defines analytics-ready database views, which act as a semantic  
-layer for downstream use. A few examples include: 
-
-- **vw_avg_los_by_encounter_type**  
-  Average length of stay and encounter counts grouped by encounter type.
-
-- **vw_encounters_by_department_month**  
-  Monthly encounter counts and total charges by department.
-    
-Views are defined in `sql/views.sql` and created automatically by running
-`create_views.py`, ensuring reproducible setup.
-
 All pipeline steps are idempotent and can be safely re-run without manual cleanup.
 
 ## Project layout
-
+```
 Hospital_Analytics_Warehouse/
 ├─ data/
 │  └─ raw/ 
@@ -219,5 +217,5 @@ Hospital_Analytics_Warehouse/
 ├─ load_staging.py 
 ├─ validate_and_build.py
 └─ export_reports.py
-
+```
 
