@@ -1,8 +1,20 @@
 # Hospital Analytics Data Warehouse (Docker + Postgres + Python ETL)
-End-to-end data engineering project. Simulates hospital data sources, 
-loads them into a staging layer, validates data quality, and builds an 
-analytics-ready warehouse schema (dimensions + fact table). Includes 
-reporting views and CSV exports. More detailed descriptions below.
+End-to-end data engineering project that simulates hospital data integration
+using both synthetic CSV extracts and real-world healthcare interoperability
+standards (FHIR). The pipeline loads data into a staging layer, validates data
+quality, and builds an analytics-ready dimensional warehouse for reporting and
+operational analysis.
+
+## Key features
+
+- End-to-end data warehouse pipeline using PostgreSQL and Python
+- Dual upstream ingest modes:
+  - **Synthetic CSV extracts** for repeatable testing and volume simulation
+  - **FHIR Bundle ingestion** to simulate real-world clinical interoperability
+- Staging layer with validation and controlled data flow
+- Dimensional (star) schema optimized for analytics and reporting
+- Transactional warehouse builds with audit logging
+- SQL-based reporting views and CSV exports
 
 ## Tech stack
 - Python (pandas, SQLAlchemy)
@@ -22,7 +34,7 @@ And ensure container is running with:
 ```
 docker ps
 ```
-Create virtual environment and install requirements:
+Create virtual environment and install requirements (windows):
 ```
 py -m venv venv
 .\venv\Scripts\activate
@@ -43,10 +55,14 @@ Run each line below in the following order:
 py create_schema.py
 py generate_raw_data.py
 py load_staging.py
-py validate_and_build.py
+
+python validate_and_build.py --source csv
+
 py create_views.py
 py export_reports.py
 ```
+NOTE: `python validate_and_build.py --source csv` may be changed to `--source fhir` for FHIR data source. 
+To do so you must first run `ingest_fhir.py`
 
 ## Reporting views
 
@@ -154,6 +170,43 @@ data into staging tables prefixed with "stg_". These are necessary for
 controlled data flow as they act as a buffer for validation and inspection 
 of the raw data. 
 
+## Data sources and ingest modes
+
+This project supports multiple upstream data sources that feed a shared
+analytics warehouse model.
+
+### CSV-based ingest (synthetic data)
+
+Synthetic CSV files are generated using `generate_raw_data.py` to simulate
+extracts from systems such as:
+
+- Electronic Health Records (EHR)
+- Billing systems
+- Laboratory systems
+- Human Resources systems
+
+These CSVs are loaded into staging tables prefixed with `stg_` and are useful
+for development, testing, and repeatable demonstrations.
+
+### FHIR-based ingest (healthcare interoperability)
+
+In addition to CSVs, the pipeline supports ingestion of **FHIR Bundles**
+(JSON format), which represent how modern healthcare systems exchange data.
+
+FHIR resources currently supported include:
+
+- `Patient`
+- `Encounter`
+- `Observation` (laboratory results using LOINC codes)
+- `ChargeItem` (billing events using CPT codes)
+
+FHIR bundles are parsed and flattened into staging tables prefixed with
+`stg_fhir_`. These tables are then normalized and validated before being
+loaded into the warehouse.
+
+Both ingest modes populate the **same dimensional warehouse schema**, allowing
+downstream analytics to remain source-agnostic.
+
 ## Data quality checks
 
 The script `validate_and_build.py` enforces data quality checks before
@@ -197,25 +250,27 @@ All pipeline steps are idempotent and can be safely re-run without manual cleanu
 ```
 Hospital_Analytics_Warehouse/
 ├─ data/
-│  └─ raw/ 
-├─ output/ 
+│  ├─ raw/
+│  └─ fhir/
+│     └─ sample_bundle.json
+├─ output/
 │  ├─ reports/
-│  └─ logs/
+│  └─ logs/ 
 ├─ Scripts/
-│  └─ test_db.py  
+│  └─ test_db.py
 ├─ sql/
 │  └─ views.sql
-├─ venv/ 
-├─ .env (user-created; not committed)
+├─ venv/
+├─ .env                # user-created; not committed
 ├─ .gitignore
-├─ docker-compose.yml       
+├─ docker-compose.yml
 ├─ requirements.txt
 ├─ README.md
-├─ create_schema.py    
-├─ create_views.py  
+├─ create_schema.py
+├─ create_views.py
 ├─ generate_raw_data.py 
-├─ load_staging.py 
+├─ load_staging.py
+├─ ingest_fhir.py
 ├─ validate_and_build.py
 └─ export_reports.py
 ```
-

@@ -1,0 +1,213 @@
+{
+  "resourceType": "Bundle",
+  "type": "collection",
+  "timestamp": "2025-12-22T12:00:00Z",
+  "entry": [
+    {
+      "fullUrl": "urn:uuid:patient-001",
+      "resource": {
+        "resourceType": "Patient",
+        "id": "patient-001",
+        "identifier": [
+          { "system": "http://hospital.example.org/mrn", "value": "MRN1000001" }
+        ],
+        "name": [
+          { "use": "official", "family": "DOE", "given": ["JANE"] }
+        ],
+        "gender": "female",
+        "birthDate": "1987-04-12"
+      }
+    },
+    {
+      "fullUrl": "urn:uuid:encounter-001",
+      "resource": {
+        "resourceType": "Encounter",
+        "id": "encounter-001",
+        "status": "finished",
+        "class": {
+          "system": "http://terminology.hl7.org/CodeSystem/v3-ActCode",
+          "code": "EMER",
+          "display": "emergency"
+        },
+        "type": [
+          {
+            "coding": [
+              {
+                "system": "http://terminology.hl7.org/CodeSystem/encounter-type",
+                "code": "EMER",
+                "display": "Emergency"
+              }
+            ]
+          }
+        ],
+        "subject": { "reference": "Patient/patient-001" },
+        "participant": [
+          {
+            "individual": {
+              "reference": "Practitioner/pract-001",
+              "display": "Provider 01"
+            }
+          }
+        ],
+        "serviceProvider": {
+          "reference": "Organization/org-001",
+          "display": "Pullman Regional Hospital"
+        },
+        "period": { "start": "2025-12-20T18:10:00Z", "end": "2025-12-20T22:35:00Z" },
+        "location": [
+          {
+            "location": {
+              "reference": "Location/ED",
+              "display": "Emergency Department"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "fullUrl": "urn:uuid:observation-001",
+      "resource": {
+        "resourceType": "Observation",
+        "id": "observation-001",
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+                "code": "laboratory",
+                "display": "Laboratory"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "718-7",
+              "display": "Hemoglobin [Mass/volume] in Blood"
+            }
+          ],
+          "text": "Hemoglobin"
+        },
+        "subject": { "reference": "Patient/patient-001" },
+        "encounter": { "reference": "Encounter/encounter-001" },
+        "effectiveDateTime": "2025-12-20T19:05:00Z",
+        "valueQuantity": { "value": 13.2, "unit": "g/dL", "system": "http://unitsofmeasure.org", "code": "g/dL" }
+      }
+    },
+    {
+      "fullUrl": "urn:uuid:observation-002",
+      "resource": {
+        "resourceType": "Observation",
+        "id": "observation-002",
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+                "code": "laboratory",
+                "display": "Laboratory"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "6690-2",
+              "display": "Leukocytes [#/volume] in Blood by Automated count"
+            }
+          ],
+          "text": "WBC"
+        },
+        "subject": { "reference": "Patient/patient-001" },
+        "encounter": { "reference": "Encounter/encounter-001" },
+        "effectiveDateTime": "2025-12-20T19:06:00Z",
+        "valueQuantity": { "value": 8.4, "unit": "10^3/uL", "system": "http://unitsofmeasure.org", "code": "10*3/uL" }
+      }
+    },
+    {
+      "fullUrl": "urn:uuid:observation-003",
+      "resource": {
+        "resourceType": "Observation",
+        "id": "observation-003",
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+                "code": "laboratory",
+                "display": "Laboratory"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "2951-2",
+              "display": "Sodium [Moles/volume] in Serum or Plasma"
+            }
+          ],
+          "text": "Sodium"
+        },
+        "subject": { "reference": "Patient/patient-001" },
+        "encounter": { "reference": "Encounter/encounter-001" },
+        "effectiveDateTime": "2025-12-20T19:07:00Z",
+        "valueQuantity": { "value": 139.0, "unit": "mmol/L", "system": "http://unitsofmeasure.org", "code": "mmol/L" }
+      }
+    },
+    {
+      "fullUrl": "urn:uuid:chargeitem-001",
+      "resource": {
+        "resourceType": "ChargeItem",
+        "id": "chargeitem-001",
+        "status": "billable",
+        "subject": { "reference": "Patient/patient-001" },
+        "context": { "reference": "Encounter/encounter-001" },
+        "code": {
+          "coding": [
+            {
+              "system": "http://www.ama-assn.org/go/cpt",
+              "code": "85025",
+              "display": "Blood count; complete (CBC), automated"
+            }
+          ],
+          "text": "CBC"
+        },
+        "quantity": { "value": 1 },
+        "occurrenceDateTime": "2025-12-20T19:10:00Z",
+        "priceOverride": { "value": 38.5, "currency": "USD" }
+      }
+    },
+    {
+      "fullUrl": "urn:uuid:chargeitem-002",
+      "resource": {
+        "resourceType": "ChargeItem",
+        "id": "chargeitem-002",
+        "status": "billable",
+        "subject": { "reference": "Patient/patient-001" },
+        "context": { "reference": "Encounter/encounter-001" },
+        "code": {
+          "coding": [
+            {
+              "system": "http://www.ama-assn.org/go/cpt",
+              "code": "99284",
+              "display": "Emergency department visit, moderate severity"
+            }
+          ],
+          "text": "ED Visit"
+        },
+        "quantity": { "value": 1 },
+        "occurrenceDateTime": "2025-12-20T18:15:00Z",
+        "priceOverride": { "value": 450.0, "currency": "USD" }
+      }
+    }
+  ]
+}

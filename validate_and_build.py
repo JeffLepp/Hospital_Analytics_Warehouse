@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 from datetime import datetime
 import pandas as pd
+import argparse
 
 from dotenv import load_dotenv
 from sqlalchemy import create_engine, text
@@ -11,8 +12,23 @@ from sqlalchemy import create_engine, text
 def fail(msg: str):
     raise RuntimeError(f"VALIDATION FAILED: {msg}")
 
+def parse_args():
+    parser = argparse.ArgumentParser(description="Validate staging data and build warehouse")
+    parser.add_argument(
+        "--source",
+        choices=["csv", "fhir"],
+        default="csv",
+        help="Upstream data source to build warehouse from",
+    )
+    return parser.parse_args()
+
 
 def main():
+
+    # Args for CSV or FHIR (just the one flag)
+    args = parse_args()
+    source = args.source
+
     load_dotenv()
     engine = create_engine(os.getenv("DATABASE_URL"), future=True)
 
@@ -26,17 +42,83 @@ def main():
         ).scalar_one()
 
     # ----------------------------
-    # Load staging tables
+    # Load staging tables depending on arg
     # ----------------------------
-    patients = pd.read_sql("SELECT * FROM stg_patients", engine)
-    encounters = pd.read_sql("SELECT * FROM stg_encounters", engine)
-    charges = pd.read_sql("SELECT * FROM stg_charges", engine)
-    labs = pd.read_sql("SELECT * FROM stg_labs", engine)
-    staff = pd.read_sql("SELECT * FROM stg_staff", engine)
+    if source == "csv":
+        patients = pd.read_sql("SELECT * FROM stg_patients", engine)
+        encounters = pd.read_sql("SELECT * FROM stg_encounters", engine)
+        charges = pd.read_sql("SELECT * FROM stg_charges", engine)
+        labs = pd.read_sql("SELECT * FROM stg_labs", engine)
+        staff = pd.read_sql("SELECT * FROM stg_staff", engine)
+
+    elif source == "fhir":
+        patients = pd.read_sql("SELECT * FROM stg_fhir_patient", engine)
+        encounters = pd.read_sql("SELECT * FROM stg_fhir_encounter", engine)
+        charges = pd.read_sql("SELECT * FROM stg_fhir_chargeitem", engine)
+        labs = pd.read_sql("SELECT * FROM stg_fhir_observation", engine)
+        staff = pd.DataFrame()  # FHIR bundle doesn't include HR data
+
+    #----------------------------
+    # If FHIR arg then we need to normalize tables so we have expected values/names
+    #----------------------------
+    if source == "fhir":
+        # Normalize FHIR patients
+        patients = patients.rename(
+            columns={
+                "birth_date": "birth_year",
+                "gender": "sex",
+            }
+        )
+
+        patients["birth_year"] = (
+            pd.to_datetime(patients["birth_year"], errors="coerce").dt.year
+        )
+
+        # Standardize sex values to match CSV conventions
+        patients["sex"] = patients["sex"].map(
+            {
+                "male": "M",
+                "female": "F",
+                "other": "O",
+                "unknown": None,
+            }
+        )
+
+        # Normalize encounters
+        encounters = encounters.rename(
+            columns={
+                "start_ts": "admit_ts",
+                "end_ts": "discharge_ts",
+                "department": "department_id",
+            }
+        )
+
+        # Normalize charges
+        charges = charges.rename(
+            columns={
+                "amount": "amount"
+            }
+        )
+
+        # Normalize labs
+        labs = labs.rename(
+            columns={
+                "loinc_code": "loinc_code",
+                "effective_ts": "result_ts",
+                "value": "result_value",
+            }
+        )
+
+        # provider_id doesn't exist in our FHIR staging; create a stable surrogate
+        if "provider_id" not in encounters.columns:
+            encounters["provider_id"] = encounters.get("provider_name")
+
+        # encounter_type in CSV exists; for FHIR, use class_display (or class_code)
+        if "encounter_type" not in encounters.columns:
+            encounters["encounter_type"] = encounters.get("class_display").fillna(encounters.get("class_code"))
 
     # ----------------------------
-    # VALIDATION - Checks currently included:
-    #   
+    # VALIDATION 
     # ----------------------------
     if patients["patient_id"].duplicated().any():
         fail("Duplicate patient_id in stg_patients")
@@ -44,7 +126,7 @@ def main():
     if encounters["encounter_id"].duplicated().any(): 
         fail("Duplicate encounter_id in stg_encounters")
 
-    if (charges["amount"] < 0).any():
+    if not charges.empty and (charges["amount"] < 0).any():
         fail("Negative charge amounts detected")
 
     encounters["admit_ts"] = pd.to_datetime(encounters["admit_ts"])
